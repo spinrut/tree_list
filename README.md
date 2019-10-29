@@ -9,7 +9,7 @@ As with ropes, each node in a TreeList records the size of its left subtree. A T
 
 ### Operations
 Operating on a TreeList is mostly similar to operating on a BST.
-Get: Given index `i`, perform binary search as you would with a BST. Whenever you descend to a node's right subtree, subtract that node's `size_of_left_subtree + 1`.
-Insertion: Similar to BST insertion. When descending to a node's left subtree, increment its `size_of_left_subtree`.
-Deletion: Similar to BST deletion. When descending to a node's left subtree, decrement its `size_of_left_subtree`.
-Rotation: Similar to BST rotation. Updates to `size_of_left_subtree` for each node involved can be computed from the relevant node's current `size_of_left_subtree` parameters, as well as the size of the former root's subtree.
+- Get: Given index `i`, perform binary search as you would with a BST. Whenever you descend to a node's right subtree, subtract that node's `size_of_left_subtree + 1`.
+- Insertion: Similar to BST insertion. When descending to a node's left subtree, increment its `size_of_left_subtree`.
+- Deletion: Similar to BST deletion. When descending to a node's left subtree, decrement its `size_of_left_subtree`.
+- Rotation: Similar to BST rotation. Updates to `size_of_left_subtree` for each node involved can be computed from the relevant node's current `size_of_left_subtree` parameters, as well as the size of the former root's subtree.
