@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 type Link<T> = Option<Box<TreeNode<T>>>;
 
 #[derive(Debug)]
@@ -40,13 +41,13 @@ impl<T> TreeList<T> {
             let mut node = self.root.as_ref().unwrap();
 
             loop {
-                if index < node.num_to_left {
-                    node = node.left.as_ref().unwrap();
-                } else if index > node.num_to_left {
-                    index -= node.num_to_left + 1;
-                    node = node.right.as_ref().unwrap();
-                } else {
-                    break Some(&node.val);
+                match index.cmp(&node.num_to_left) {
+                    Ordering::Less => node = node.left.as_ref().unwrap(),
+                    Ordering::Greater => {
+                        index -= node.num_to_left + 1;
+                        node = node.right.as_ref().unwrap();
+                    }
+                    Ordering::Equal => break Some(&node.val),
                 }
             }
         }
@@ -59,13 +60,13 @@ impl<T> TreeList<T> {
             let mut node = self.root.as_mut().unwrap();
 
             loop {
-                if index < node.num_to_left {
-                    node = node.left.as_mut().unwrap();
-                } else if index > node.num_to_left {
-                    index -= node.num_to_left + 1;
-                    node = node.right.as_mut().unwrap();
-                } else {
-                    break Some(&mut node.val);
+                match index.cmp(&node.num_to_left) {
+                    Ordering::Less => node = node.left.as_mut().unwrap(),
+                    Ordering::Greater => {
+                        index -= node.num_to_left + 1;
+                        node = node.right.as_mut().unwrap();
+                    }
+                    Ordering::Equal => break Some(&mut node.val),
                 }
             }
         }
@@ -162,14 +163,16 @@ impl<T> TreeList<T> {
             let mut curr = &mut self.root;
             loop {
                 let num_to_left = curr.as_mut().unwrap().num_to_left;
-                if index < num_to_left {
-                    curr.as_mut().unwrap().num_to_left -= 1;
-                    curr = &mut curr.as_mut().unwrap().left;
-                } else if index > num_to_left {
-                    index -= num_to_left + 1;
-                    curr = &mut curr.as_mut().unwrap().right;
-                } else {
-                    break;
+                match index.cmp(&num_to_left) {
+                    Ordering::Less => {
+                        curr.as_mut().unwrap().num_to_left -= 1;
+                        curr = &mut curr.as_mut().unwrap().left;
+                    }
+                    Ordering::Greater => {
+                        index -= num_to_left + 1;
+                        curr = &mut curr.as_mut().unwrap().right;
+                    }
+                    Ordering::Equal => break,
                 }
             }
 
@@ -203,7 +206,7 @@ impl<T> TreeList<T> {
             match node.left.take() {
                 None => {
                     curr = node.right.take();
-                },
+                }
                 Some(mut left) => {
                     if node.right.is_some() {
                         node.left = left.right.take();

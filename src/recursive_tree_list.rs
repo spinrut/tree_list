@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 type Link<T> = Option<Box<TreeNode<T>>>;
 
 #[derive(Debug)]
@@ -40,13 +41,13 @@ impl<T> RecursiveTreeList<T> {
             let mut node = self.root.as_ref().unwrap();
 
             loop {
-                if index < node.num_to_left {
-                    node = node.left.as_ref().unwrap();
-                } else if index > node.num_to_left {
-                    index -= node.num_to_left + 1;
-                    node = node.right.as_ref().unwrap();
-                } else {
-                    break Some(&node.val);
+                match index.cmp(&node.num_to_left) {
+                    Ordering::Less => node = node.left.as_ref().unwrap(),
+                    Ordering::Greater => {
+                        index -= node.num_to_left + 1;
+                        node = node.right.as_ref().unwrap();
+                    }
+                    Ordering::Equal => break Some(&node.val),
                 }
             }
         }
@@ -59,13 +60,13 @@ impl<T> RecursiveTreeList<T> {
             let mut node = self.root.as_mut().unwrap();
 
             loop {
-                if index < node.num_to_left {
-                    node = node.left.as_mut().unwrap();
-                } else if index > node.num_to_left {
-                    index -= node.num_to_left + 1;
-                    node = node.right.as_mut().unwrap();
-                } else {
-                    break Some(&mut node.val);
+                match index.cmp(&node.num_to_left) {
+                    Ordering::Less => node = node.left.as_mut().unwrap(),
+                    Ordering::Greater => {
+                        index -= node.num_to_left + 1;
+                        node = node.right.as_mut().unwrap();
+                    }
+                    Ordering::Equal => break Some(&mut node.val),
                 }
             }
         }
@@ -180,18 +181,20 @@ impl<T> RecursiveTreeList<T> {
     }
 
     fn remove_aux(mut node: Box<TreeNode<T>>, mut index: usize) -> (Link<T>, T) {
-        if index < node.num_to_left {
-            node.num_to_left -= 1;
-            let (left, res) = Self::remove_aux(node.left.unwrap(), index);
-            node.left = left;
-            (Some(node), res)
-        } else if index > node.num_to_left {
-            index -= node.num_to_left + 1;
-            let (right, res) = Self::remove_aux(node.right.unwrap(), index);
-            node.right = right;
-            (Some(node), res)
-        } else {
-            match (node.left.take(), node.right.take()) {
+        match index.cmp(&node.num_to_left) {
+            Ordering::Less => {
+                node.num_to_left -= 1;
+                let (left, res) = Self::remove_aux(node.left.unwrap(), index);
+                node.left = left;
+                (Some(node), res)
+            }
+            Ordering::Greater => {
+                index -= node.num_to_left + 1;
+                let (right, res) = Self::remove_aux(node.right.unwrap(), index);
+                node.right = right;
+                (Some(node), res)
+            }
+            Ordering::Equal => match (node.left.take(), node.right.take()) {
                 (None, None) => (None, node.val),
                 (left, None) => (left, node.val),
                 (None, right) => (right, node.val),
@@ -202,7 +205,7 @@ impl<T> RecursiveTreeList<T> {
                     let res = std::mem::replace(&mut node.val, succ.unwrap());
                     (Some(node), res)
                 }
-            }
+            },
         }
     }
 
