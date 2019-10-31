@@ -195,7 +195,24 @@ impl<T> TreeList<T> {
     }
 
     pub fn clear(&mut self) {
-        self.root = None;
+        self.size = 0;
+        let mut curr = self.root.take();
+        while let Some(mut node) = curr {
+            match node.left.take() {
+                None => {
+                    curr = node.right.take();
+                },
+                Some(mut left) => {
+                    if node.right.is_some() {
+                        node.left = left.right.take();
+                        left.right = Some(node);
+                        curr = Some(left);
+                    } else {
+                        curr = Some(left);
+                    }
+                }
+            }
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -215,6 +232,12 @@ impl<T> TreeList<T> {
         }
 
         Iter { stack }
+    }
+}
+
+impl<T> Drop for TreeList<T> {
+    fn drop(&mut self) {
+        self.clear();
     }
 }
 

@@ -217,6 +217,11 @@ impl<T> RecursiveTreeList<T> {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.size = 0;
+        self.root = None;
+    }
+
     pub fn len(&self) -> usize {
         self.size
     }
@@ -234,6 +239,12 @@ impl<T> RecursiveTreeList<T> {
         }
 
         Iter { stack }
+    }
+}
+
+impl<T> Drop for RecursiveTreeList<T> {
+    fn drop(&mut self) {
+        self.clear();
     }
 }
 
