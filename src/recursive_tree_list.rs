@@ -20,14 +20,14 @@ impl<T> TreeNode<T> {
 }
 
 #[derive(Debug, Default)]
-pub struct TreeList<T> {
+pub struct RecursiveTreeList<T> {
     root: Link<T>,
     size: usize,
 }
 
-impl<T> TreeList<T> {
+impl<T> RecursiveTreeList<T> {
     pub fn new() -> Self {
-        TreeList {
+        RecursiveTreeList {
             root: None,
             size: 0,
         }
@@ -71,62 +71,101 @@ impl<T> TreeList<T> {
         }
     }
 
+    fn push_front_aux(node: Link<T>, val: T) -> Link<T> {
+        match node {
+            None => Some(Box::new(TreeNode::new(val))),
+            Some(x) => {
+                let mut x = x;
+                x.num_to_left += 1;
+                x.left = Self::push_front_aux(x.left, val);
+                Some(x)
+            }
+        }
+    }
+
     pub fn push_front(&mut self, val: T) {
         self.size += 1;
+        self.root = Self::push_front_aux(self.root.take(), val);
+    }
 
-        let mut curr = &mut self.root;
-        while let Some(node) = curr {
-            node.num_to_left += 1;
-            curr = &mut node.left;
+    fn pop_front_aux(mut node: Box<TreeNode<T>>) -> (Link<T>, Option<T>) {
+        match node.left {
+            None => (node.right, Some(node.val)),
+            Some(next) => {
+                node.num_to_left -= 1;
+                let (left, res) = Self::pop_front_aux(next);
+                node.left = left;
+                (Some(node), res)
+            }
         }
-
-        *curr = Some(Box::new(TreeNode::new(val)));
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
-        match &mut self.root {
-            None => None,
-            curr => {
+        let (root, res) = match self.root.take() {
+            None => (None, None),
+            Some(node) => {
                 self.size -= 1;
-                let mut curr = curr;
+                Self::pop_front_aux(node)
+            }
+        };
 
-                while curr.as_mut().unwrap().left.is_some() {
-                    curr.as_mut().unwrap().num_to_left -= 1;
-                    curr = &mut curr.as_mut().unwrap().left;
-                }
+        self.root = root;
+        res
+    }
 
-                let mut tmp = curr.take().unwrap();
-                *curr = tmp.right.take();
-                Some(tmp.val)
+    fn push_back_aux(node: Link<T>, val: T) -> Link<T> {
+        match node {
+            None => Some(Box::new(TreeNode::new(val))),
+            Some(x) => {
+                let mut x = x;
+                x.right = Self::push_back_aux(x.right, val);
+                Some(x)
             }
         }
     }
 
     pub fn push_back(&mut self, val: T) {
         self.size += 1;
+        self.root = Self::push_back_aux(self.root.take(), val);
+    }
 
-        let mut curr = &mut self.root;
-        while let Some(node) = curr {
-            curr = &mut node.right;
+    fn pop_back_aux(mut node: Box<TreeNode<T>>) -> (Link<T>, Option<T>) {
+        match node.right {
+            None => (node.left, Some(node.val)),
+            Some(next) => {
+                let (right, res) = Self::pop_back_aux(next);
+                node.right = right;
+                (Some(node), res)
+            }
         }
-
-        *curr = Some(Box::new(TreeNode::new(val)));
     }
 
     pub fn pop_back(&mut self) -> Option<T> {
-        match &mut self.root {
-            None => None,
-            curr => {
+        let (root, res) = match self.root.take() {
+            None => (None, None),
+            Some(node) => {
                 self.size -= 1;
-                let mut curr = curr;
+                Self::pop_back_aux(node)
+            }
+        };
 
-                while curr.as_mut().unwrap().right.is_some() {
-                    curr = &mut curr.as_mut().unwrap().right;
+        self.root = root;
+        res
+    }
+
+    fn insert_aux(node: Link<T>, index: usize, val: T) -> Link<T> {
+        match node {
+            None => Some(Box::new(TreeNode::new(val))),
+            Some(x) => {
+                let mut x = x;
+                if index <= x.num_to_left {
+                    x.num_to_left += 1;
+                    x.left = Self::insert_aux(x.left, index, val);
+                    Some(x)
+                } else {
+                    x.right = Self::insert_aux(x.right, index - x.num_to_left - 1, val);
+                    Some(x)
                 }
-
-                let mut tmp = curr.take().unwrap();
-                *curr = tmp.left.take();
-                Some(tmp.val)
             }
         }
     }
@@ -136,66 +175,46 @@ impl<T> TreeList<T> {
             panic!("Index out of bounds!");
         } else {
             self.size += 1;
-
-            let mut index = index;
-            let mut curr = &mut self.root;
-            while let Some(node) = curr {
-                if index <= node.num_to_left {
-                    node.num_to_left += 1;
-                    curr = &mut node.left;
-                } else {
-                    index -= node.num_to_left + 1;
-                    curr = &mut node.right;
-                }
-            }
-
-            *curr = Some(Box::new(TreeNode::new(val)));
+            self.root = Self::insert_aux(self.root.take(), index, val);
         }
     }
 
-    pub fn remove(&mut self, mut index: usize) -> T {
+    fn remove_aux(mut node: Box<TreeNode<T>>, mut index: usize) -> (Link<T>, T) {
+        if index < node.num_to_left {
+            node.num_to_left -= 1;
+            let (left, res) = Self::remove_aux(node.left.unwrap(), index);
+            node.left = left;
+            (Some(node), res)
+        } else if index > node.num_to_left {
+            index -= node.num_to_left + 1;
+            let (right, res) = Self::remove_aux(node.right.unwrap(), index);
+            node.right = right;
+            (Some(node), res)
+        } else {
+            match (node.left.take(), node.right.take()) {
+                (None, None) => (None, node.val),
+                (left, None) => (left, node.val),
+                (None, right) => (right, node.val),
+                (left, Some(right)) => {
+                    node.left = left;
+                    let (right, succ) = Self::pop_front_aux(right);
+                    node.right = right;
+                    let res = std::mem::replace(&mut node.val, succ.unwrap());
+                    (Some(node), res)
+                }
+            }
+        }
+    }
+
+    pub fn remove(&mut self, index: usize) -> T {
         if index >= self.size {
             panic!("Index out of bounds!");
         } else {
             self.size -= 1;
-
-            let mut curr = &mut self.root;
-            loop {
-                let num_to_left = curr.as_mut().unwrap().num_to_left;
-                if index < num_to_left {
-                    curr.as_mut().unwrap().num_to_left -= 1;
-                    curr = &mut curr.as_mut().unwrap().left;
-                } else if index > num_to_left {
-                    index -= num_to_left + 1;
-                    curr = &mut curr.as_mut().unwrap().right;
-                } else {
-                    break;
-                }
-            }
-
-            if curr.as_mut().unwrap().left.is_none() {
-                let mut tmp = curr.take().unwrap();
-                *curr = tmp.right.take();
-                tmp.val
-            } else if curr.as_mut().unwrap().right.is_none() {
-                let mut tmp = curr.take().unwrap();
-                *curr = tmp.left.take();
-                tmp.val
-            } else {
-                let curr = curr.as_mut().unwrap();
-                let mut to_delete = &mut curr.right;
-                while to_delete.as_mut().unwrap().left.is_some() {
-                    to_delete.as_mut().unwrap().num_to_left -= 1;
-                    to_delete = &mut to_delete.as_mut().unwrap().left;
-                }
-
-                std::mem::replace(&mut curr.val, to_delete.take().unwrap().val)
-            }
+            let (root, res) = Self::remove_aux(self.root.take().unwrap(), index);
+            self.root = root;
+            res
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.root = None;
     }
 
     pub fn len(&self) -> usize {
@@ -241,11 +260,11 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::TreeList;
+    use super::RecursiveTreeList;
 
     #[test]
     fn test_empty_tree() {
-        let tree: TreeList<char> = TreeList::new();
+        let tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         assert_eq!(tree.len(), 0);
         assert_eq!(tree.iter().copied().collect::<Vec<char>>(), [].to_vec());
@@ -253,7 +272,7 @@ mod tests {
 
     #[test]
     fn test_add_one() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.push_back('a');
 
@@ -263,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_add_three() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.push_back('a');
         tree.push_back('b');
@@ -278,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_add_front_one() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.push_front('a');
 
@@ -288,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_add_front_three() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.push_front('a');
         tree.push_front('b');
@@ -303,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_insert_one() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.insert(0, 'a');
 
@@ -313,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_insert_ordered() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.insert(0, 'a');
         tree.insert(1, 'b');
@@ -329,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_insert_indexed() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.insert(0, 'a');
         tree.insert(0, 'b');
@@ -345,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_push_pop() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.push_back('a');
         tree.push_back('b');
@@ -366,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_insert_pop() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.insert(0, 'a');
         tree.insert(0, 'b');
@@ -384,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_push_remove() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.push_back('a');
         tree.push_back('b');
@@ -405,15 +424,18 @@ mod tests {
 
     #[test]
     fn test_insert_remove() {
-        let mut tree: TreeList<char> = TreeList::new();
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
 
         tree.insert(0, 'a');
         tree.insert(0, 'b');
         tree.insert(2, 'c');
         tree.insert(1, 'd');
+        println!("{:?}", tree);
 
         assert_eq!(tree.remove(1), 'd');
+        println!("{:?}", tree);
         assert_eq!(tree.remove(1), 'a');
+        println!("{:?}", tree);
 
         assert_eq!(tree.len(), 2);
         assert_eq!(
