@@ -454,4 +454,42 @@ mod tests {
             ['b', 'c'].to_vec()
         );
     }
+
+    #[test]
+    fn test_get() {
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
+
+        tree.insert(0, 'a');
+        tree.insert(0, 'b');
+        tree.insert(2, 'c');
+        tree.insert(1, 'd');
+
+        assert_eq!(tree.get(0), Some('b').as_ref());
+        assert_eq!(tree.get(1), Some('d').as_ref());
+        assert_eq!(tree.get(2), Some('a').as_ref());
+        assert_eq!(tree.get(3), Some('c').as_ref());
+    }
+
+    #[test]
+    fn test_remove_node_with_children() {
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
+
+        tree.push_back('a');
+        tree.push_front('b');
+        tree.push_back('c');
+        tree.insert(2, 'd');
+        tree.push_back('e');
+        tree.insert(3, 'f');
+        assert_eq!(tree.len(), 6);
+        assert_eq!(
+            tree.iter().copied().collect::<Vec<char>>(),
+            ['b', 'a', 'd', 'f', 'c', 'e'].to_vec()
+        );
+        assert_eq!(tree.remove(1), 'a');
+        assert_eq!(tree.len(), 5);
+        assert_eq!(
+            tree.iter().copied().collect::<Vec<char>>(),
+            ['b', 'd', 'f', 'c', 'e'].to_vec()
+        );
+    }
 }
