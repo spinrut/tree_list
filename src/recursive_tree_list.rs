@@ -489,10 +489,31 @@ mod tests {
             ['b', 'a', 'd', 'f', 'c', 'e'].to_vec()
         );
         assert_eq!(tree.remove(1), 'a');
+
         assert_eq!(tree.len(), 5);
         assert_eq!(
             tree.iter().copied().collect::<Vec<char>>(),
             ['b', 'd', 'f', 'c', 'e'].to_vec()
+        );
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut tree: RecursiveTreeList<char> = RecursiveTreeList::new();
+
+        tree.push_back('a');
+        tree.push_front('b');
+        tree.push_back('c');
+        tree.insert(2, 'd');
+        tree.push_back('e');
+        tree.insert(3, 'f');
+
+        tree.clear();
+
+        assert_eq!(tree.len(), 0);
+        assert_eq!(
+            tree.iter().copied().collect::<Vec<char>>(),
+            Vec::new()
         );
     }
 }
