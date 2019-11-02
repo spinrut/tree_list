@@ -1,9 +1,16 @@
 use std::cmp::Ordering;
 type Link<T> = Option<Box<TreeNode<T>>>;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Color {
+    Black,
+    Red
+}
+
 #[derive(Debug)]
 struct TreeNode<T> {
     val: T,
+    color: Color,
     num_to_left: usize,
     left: Link<T>,
     right: Link<T>,
@@ -13,6 +20,7 @@ impl<T> TreeNode<T> {
     fn new(val: T) -> Self {
         TreeNode {
             val,
+            color: Color::Red,
             num_to_left: 0,
             left: None,
             right: None,
@@ -26,6 +34,11 @@ pub struct RecursiveTreeList<T> {
     size: usize,
 }
 
+/* TODO Convert to Red-Black version:
+ * pop_front
+ * pop_back
+ * remove
+ */
 impl<T> RecursiveTreeList<T> {
     pub fn new() -> Self {
         RecursiveTreeList {
@@ -72,21 +85,61 @@ impl<T> RecursiveTreeList<T> {
         }
     }
 
-    fn push_front_aux(node: Link<T>, val: T) -> Link<T> {
+    fn rot_r(mut node: Box<TreeNode<T>>, mut left: Box<TreeNode<T>>) -> Box<TreeNode<T>> {
+        node.left = left.right.take();
+
+        // Update node.num_to_left. Values for tmp and other nodes do not change.
+        node.num_to_left -= left.num_to_left + 1;
+
+        left.right = Some(node);
+
+        // flipColors(), except two of the colors are already correct
+        left.left.as_mut().unwrap().color = Color::Black;
+        left
+    }
+
+    fn rot_l(mut node: Box<TreeNode<T>>, mut right: Box<TreeNode<T>>) -> Box<TreeNode<T>> {
+        node.right = right.left.take();
+
+        // Update tmp.num_to_left. Values for 'node' and other nodes do not change.
+        right.num_to_left += node.num_to_left + 1;
+
+        // Link reverses direction, so node and tmp swap colors
+        std::mem::swap(&mut right.color, &mut node.color);
+
+        right.left = Some(node);
+        right
+    }
+
+    fn node_color(node: &Link<T>) -> Color {
         match node {
-            None => Some(Box::new(TreeNode::new(val))),
-            Some(x) => {
-                let mut x = x;
+            None => Color::Black,
+            Some(ref x) => x.color
+        }
+    }
+
+    fn push_front_aux(node: Link<T>, val: T) -> Box<TreeNode<T>> {
+        match node {
+            None => Box::new(TreeNode::new(val)),
+            Some(mut x) => {
                 x.num_to_left += 1;
-                x.left = Self::push_front_aux(x.left, val);
-                Some(x)
+                let new_left = Self::push_front_aux(x.left.take(), val);
+
+                if new_left.color == Color::Red && Self::node_color(&new_left.left) == Color::Red {
+                    Self::rot_r(x, new_left)
+                } else {
+                    x.left = Some(new_left);
+                    x
+                }
             }
         }
     }
 
     pub fn push_front(&mut self, val: T) {
         self.size += 1;
-        self.root = Self::push_front_aux(self.root.take(), val);
+        let mut new_root = Self::push_front_aux(self.root.take(), val);
+        new_root.color = Color::Black;
+        self.root = Some(new_root);
     }
 
     fn pop_front_aux(mut node: Box<TreeNode<T>>) -> (Link<T>, Option<T>) {
@@ -114,20 +167,37 @@ impl<T> RecursiveTreeList<T> {
         res
     }
 
-    fn push_back_aux(node: Link<T>, val: T) -> Link<T> {
+    fn push_back_aux(node: Link<T>, val: T) -> Box<TreeNode<T>> {
         match node {
-            None => Some(Box::new(TreeNode::new(val))),
-            Some(x) => {
-                let mut x = x;
-                x.right = Self::push_back_aux(x.right, val);
-                Some(x)
+            None => Box::new(TreeNode::new(val)),
+            Some(mut x) => {
+                let mut new_right = Self::push_back_aux(x.right.take(), val);
+                match new_right.color {
+                    Color::Red => {
+                        if Self::node_color(&x.left) == Color::Red {
+                            x.left.as_mut().unwrap().color = Color::Black;
+                            new_right.color = Color::Black;
+                            x.color = Color::Red;
+                            x.right = Some(new_right);
+                            x
+                        } else {
+                            Self::rot_l(x, new_right)
+                        }
+                    },
+                    Color::Black => {
+                        x.right = Some(new_right);
+                        x
+                    }
+                }
             }
         }
     }
 
     pub fn push_back(&mut self, val: T) {
         self.size += 1;
-        self.root = Self::push_back_aux(self.root.take(), val);
+        let mut new_root = Self::push_back_aux(self.root.take(), val);
+        new_root.color = Color::Black;
+        self.root = Some(new_root);
     }
 
     fn pop_back_aux(mut node: Box<TreeNode<T>>) -> (Link<T>, Option<T>) {
@@ -154,18 +224,38 @@ impl<T> RecursiveTreeList<T> {
         res
     }
 
-    fn insert_aux(node: Link<T>, index: usize, val: T) -> Link<T> {
+    fn insert_aux(node: Link<T>, index: usize, val: T) -> Box<TreeNode<T>> {
         match node {
-            None => Some(Box::new(TreeNode::new(val))),
-            Some(x) => {
-                let mut x = x;
+            None => Box::new(TreeNode::new(val)),
+            Some(mut x) => {
                 if index <= x.num_to_left {
                     x.num_to_left += 1;
-                    x.left = Self::insert_aux(x.left, index, val);
-                    Some(x)
+                    let new_left = Self::insert_aux(x.left.take(), index, val);
+                    if new_left.color == Color::Red && Self::node_color(&new_left.left) == Color::Red {
+                        Self::rot_r(x, new_left)
+                    } else {
+                        x.left = Some(new_left);
+                        x
+                    }
                 } else {
-                    x.right = Self::insert_aux(x.right, index - x.num_to_left - 1, val);
-                    Some(x)
+                    let mut new_right = Self::insert_aux(x.right.take(), index - x.num_to_left - 1, val);
+                    match new_right.color {
+                        Color::Red => {
+                            if Self::node_color(&x.left) == Color::Red {
+                                x.left.as_mut().unwrap().color = Color::Black;
+                                new_right.color = Color::Black;
+                                x.color = Color::Red;
+                                x.right = Some(new_right);
+                                x
+                            } else {
+                                Self::rot_l(x, new_right)
+                            }
+                        }
+                        Color::Black => {
+                            x.right = Some(new_right);
+                            x
+                        }
+                    }
                 }
             }
         }
@@ -176,7 +266,9 @@ impl<T> RecursiveTreeList<T> {
             panic!("Index out of bounds!");
         } else {
             self.size += 1;
-            self.root = Self::insert_aux(self.root.take(), index, val);
+            let mut new_root = Self::insert_aux(self.root.take(), index, val);
+            new_root.color = Color::Black;
+            self.root = Some(new_root);
         }
     }
 
